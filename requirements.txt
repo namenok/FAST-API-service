@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+SQLAlchemy
+psycopg2-binary
+pydantic
+pytest
+requests
+redis
+celery
+alembic
+pytest
+httpx
