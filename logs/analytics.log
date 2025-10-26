@@ -1,0 +1,4 @@
+{"time": "2025-10-26 15:06:08,897", "level": "INFO", "endpoint": "/dau called with from=2025-10-19, to=2025-10-26, results=1"}
+{"time": "2025-10-26 15:06:08,910", "level": "INFO", "endpoint": "/top-events called with from=2025-10-19, to=2025-10-26, limit=5, results=2"}
+{"time": "2025-10-26 15:06:08,939", "level": "INFO", "endpoint": "/retention called with start_date=2025-10-19, windows=7, cohort_size=0"}
+{"time": "2025-10-26 15:42:13,677", "level": "INFO", "endpoint": "/dau called with from=2025-08-25, to=2025-09-10, results=6"}
