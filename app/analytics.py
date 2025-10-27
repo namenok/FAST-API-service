@@ -81,31 +81,48 @@ def get_top_events(
 
 
 @analytics_router.get("/retention")
-def get_retention(start_date: str = Query(..., description="Cohort start date in YYYY-MM-DD format"), windows: int = Query(7, description="Number of days to track retention")):
+def get_retention(start_date: str = Query(...), windows: int = Query(7)):
     if windows <= 0:
         raise HTTPException(status_code=400, detail="Windows must be greater than 0")
 
     session = SessionLocal()
     try:
-        start_dt = datetime.fromisoformat(start_date)
-        end_dt = start_dt + timedelta(days=windows)
+        start_dt = datetime.fromisoformat(start_date).date()
 
-        cohort_users = session.execute(
-            select(Event.user_id)
-            .where(func.date(Event.occurred_at) == start_dt.date())
-        ).scalars().all()
+        user_birthdays = select(
+            Event.user_id,
+            func.min(func.date(Event.occurred_at)).label("first_activity_date")
+        ).group_by(Event.user_id).subquery()
+
+        cohort_query = select(user_birthdays.c.user_id).where(
+            user_birthdays.c.first_activity_date == start_dt
+        )
+
+        cohort_users = [row[0] for row in session.execute(cohort_query)]
+        cohort_size = len(cohort_users)
+
+        if cohort_size == 0:
+            logger.info(f"/retention: No users found for cohort {start_date}")
+            return {"start_date": start_date, "cohort_size": 0, "retention": []}
 
         retention = []
         for day in range(1, windows + 1):
             day_dt = start_dt + timedelta(days=day)
-            returning_count = session.execute(
+
+            returning_count_query = (
                 select(func.count(func.distinct(Event.user_id)))
-                .where(Event.user_id.in_(cohort_users))
-                .where(func.date(Event.occurred_at) == day_dt.date())
-            ).scalar()
+                .where(
+                    Event.user_id.in_(cohort_users),
+                    func.date(Event.occurred_at) == day_dt
+                )
+            )
+
+            returning_count = session.execute(returning_count_query).scalar()
             retention.append({"day": day, "returning_users": returning_count})
-        logger.info(
-            f'/retention called with start_date={start_date}, windows={windows}, cohort_size={len(cohort_users)}')
-        return {"start_date": start_date, "retention": retention}
+
+        logger.info(f"/retention called with start_date={start_date}, windows={windows}, cohort_size={cohort_size}")
+        return {"start_date": start_date, "cohort_size": cohort_size, "retention": retention}
+
     finally:
         session.close()
+
